@@ -11,6 +11,10 @@ BG = (15, 15, 25)
 # Task 1: chance that a barrel takes a ladder when it reaches one (about 3 in 10)
 LADDER_DESCENT_CHANCE = 0.3
 
+# Task 2 tuning
+THEME_MAX_SCORE = 2000          # score at which the background is fully "warm"
+THEME_WARM_COLOR = (90, 25, 15)  # warm dark red/orange
+
 # (x_left, x_right, y_at_left, y_at_right)
 PLATFORMS = [
     (0, 800, 570, 570),
@@ -34,7 +38,10 @@ def platform_y(platform, x):
 
 def theme_color(score):
     """Return an (r, g, b) background colour for the current score, or None for the default."""
-    pass
+    if score <= 0:
+        return None  # keep the default navy at the start
+    t = min(score / THEME_MAX_SCORE, 1.0)  # 0 -> 1 as the score climbs
+    return tuple(int(BG[i] + (THEME_WARM_COLOR[i] - BG[i]) * t) for i in range(3))
 
 
 def on_barrel_jumped(player, barrel):
