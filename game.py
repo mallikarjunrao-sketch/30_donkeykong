@@ -15,6 +15,9 @@ LADDER_DESCENT_CHANCE = 0.3
 THEME_MAX_SCORE = 2000          # score at which the background is fully "warm"
 THEME_WARM_COLOR = (90, 25, 15)  # warm dark red/orange
 
+# Task 4 tuning
+MULTIPLIER_THRESHOLD = 500      # score after which jump bonuses are doubled
+
 # Task 3: floating "+100" labels (side effects live here)
 FLOATING_TEXTS = []             # each item: {"text", "pos", "ttl"}
 FLOAT_LIFETIME = 0.9            # seconds a label stays on screen
@@ -60,7 +63,9 @@ def on_barrel_jumped(player, barrel):
 
 def score_multiplier(score):
     """Return a multiplier applied to points earned from clearing a barrel, or None for the default 1x."""
-    pass
+    if score >= MULTIPLIER_THRESHOLD:
+        return 2
+    return None
 
 
 def update_floating_texts(dt):
@@ -249,6 +254,7 @@ def draw_scene(screen, font, player, barrels, score, lives, state):
 
 
 def main():
+    global LAST_BONUS
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Donkey Kong")
@@ -292,7 +298,8 @@ def main():
                 above = 0 < barrel.pos.y - player.pos.y + BARREL_R < 40
                 if not player.on_ground and above and abs(barrel.pos.x - player.pos.x) < 12 and not barrel.scored:
                     barrel.scored = True
-                    score += int(100 * (score_multiplier(score) or 1))
+                    LAST_BONUS = int(100 * (score_multiplier(score) or 1))
+                    score += LAST_BONUS
                     on_barrel_jumped(player, barrel)
 
             barrels[:] = [b for b in barrels if b.pos.y < HEIGHT + 30]
