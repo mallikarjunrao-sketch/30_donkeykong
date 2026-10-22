@@ -18,6 +18,11 @@ THEME_WARM_COLOR = (90, 25, 15)  # warm dark red/orange
 # Task 4 tuning
 MULTIPLIER_THRESHOLD = 500      # score after which jump bonuses are doubled
 
+# Barrel-jump scoring window (original was 40 px tall and 12 px wide, which a
+# normal jump (peak ~80 px) almost never hits)
+JUMP_CLEAR_HEIGHT = 90
+JUMP_CLEAR_DX = 18
+
 # Task 3: floating "+100" labels (side effects live here)
 FLOATING_TEXTS = []             # each item: {"text", "pos", "ttl"}
 FLOAT_LIFETIME = 0.9            # seconds a label stays on screen
@@ -295,8 +300,8 @@ def main():
                     barrels.clear()
                     state = "play" if lives > 0 else "lose"
                     break
-                above = 0 < barrel.pos.y - player.pos.y + BARREL_R < 40
-                if not player.on_ground and above and abs(barrel.pos.x - player.pos.x) < 12 and not barrel.scored:
+                above = 0 < barrel.pos.y - player.pos.y + BARREL_R < JUMP_CLEAR_HEIGHT
+                if not player.on_ground and above and abs(barrel.pos.x - player.pos.x) < JUMP_CLEAR_DX and not barrel.scored:
                     barrel.scored = True
                     LAST_BONUS = int(100 * (score_multiplier(score) or 1))
                     score += LAST_BONUS
