@@ -1,4 +1,5 @@
 import random
+
 import pygame
 
 WIDTH, HEIGHT = 800, 600
@@ -6,6 +7,9 @@ PLAYER_W, PLAYER_H = 20, 28
 BARREL_R, BARREL_SPEED = 10, 140
 WALK_SPEED, CLIMB_SPEED, JUMP_SPEED, GRAVITY = 170, 110, 380, 900
 BG = (15, 15, 25)
+
+# Task 1: chance that a barrel takes a ladder when it reaches one (about 3 in 10)
+LADDER_DESCENT_CHANCE = 0.3
 
 # (x_left, x_right, y_at_left, y_at_right)
 PLATFORMS = [
@@ -15,8 +19,10 @@ PLATFORMS = [
     (0, 740, 310, 330),
     (0, 600, 200, 200),
 ]
+
 # (x, lower platform index, upper platform index)
 LADDERS = [(650, 0, 1), (120, 1, 2), (640, 2, 3), (140, 3, 4)]
+
 KONG_POS = (60, 200)
 PRINCESS_POS = (540, 200)
 
@@ -74,6 +80,7 @@ class Player:
     def update(self, dt, keys):
         move = keys[pygame.K_RIGHT] - keys[pygame.K_LEFT]
         vertical = keys[pygame.K_DOWN] - keys[pygame.K_UP]
+
         if self.ladder is None and vertical:
             found = self.find_ladder(going_up=vertical < 0)
             if found is not None:
@@ -81,10 +88,13 @@ class Player:
                 self.pos.x = LADDERS[found][0]
                 self.vel.update(0, 0)
                 self.on_ground = False
+
         if self.ladder is not None:
             self.climb(dt, vertical)
             return
+
         self.pos.x = max(10, min(WIDTH - 10, self.pos.x + move * WALK_SPEED * dt))
+
         if self.on_ground and self.vel.y >= 0:
             for plat in PLATFORMS:
                 if plat[0] <= self.pos.x <= plat[1]:
@@ -93,9 +103,11 @@ class Player:
                         self.pos.y = py
                         return
             self.on_ground = False
+
         previous = self.pos.y
         self.vel.y = min(self.vel.y + GRAVITY * dt, 700)
         self.pos.y += self.vel.y * dt
+
         if self.vel.y >= 0:
             for plat in PLATFORMS:
                 if plat[0] <= self.pos.x <= plat[1]:
@@ -140,6 +152,7 @@ class Barrel:
                 self.plat = lower
                 self.ladder = None
             return
+
         if self.plat is None:
             previous = self.pos.y + BARREL_R
             self.vy += GRAVITY * dt
@@ -152,6 +165,7 @@ class Barrel:
                         self.plat, self.vy = index, 0
                         break
             return
+
         plat = PLATFORMS[self.plat]
         slope = plat[3] - plat[2]
         if slope:
@@ -161,18 +175,22 @@ class Barrel:
             self.plat, self.vy = None, 0
             return
         self.pos.y = platform_y(plat, self.pos.x) - BARREL_R
+
         for index, (lx, _, upper) in enumerate(LADDERS):
             if upper == self.plat and abs(self.pos.x - lx) < 3 and index not in self.skip:
                 self.skip.add(index)
-                if random.random() < 0.7:
+                # Task 1 fix: was `< 0.7` (descended ~70% of the time); now ~30%
+                if random.random() < LADDER_DESCENT_CHANCE:
                     self.ladder = index
                     self.pos.x = lx
 
 
 def draw_scene(screen, font, player, barrels, score, lives, state):
     screen.fill(theme_color(score) or BG)
+
     for x1, x2, y1, y2 in PLATFORMS:
         pygame.draw.line(screen, (210, 55, 55), (x1, y1), (x2, y2), 8)
+
     for lx, lower, upper in LADDERS:
         top = platform_y(PLATFORMS[upper], lx)
         bottom = platform_y(PLATFORMS[lower], lx)
@@ -180,15 +198,20 @@ def draw_scene(screen, font, player, barrels, score, lives, state):
         pygame.draw.line(screen, (220, 190, 80), (lx + 8, top), (lx + 8, bottom), 3)
         for y in range(int(top) + 8, int(bottom), 12):
             pygame.draw.line(screen, (220, 190, 80), (lx - 8, y), (lx + 8, y), 2)
+
     pygame.draw.rect(screen, (150, 90, 40), (KONG_POS[0] - 25, KONG_POS[1] - 50, 50, 50))
     pygame.draw.circle(screen, (255, 150, 200), (PRINCESS_POS[0], PRINCESS_POS[1] - 14), 10)
+
     for barrel in barrels:
         pygame.draw.circle(screen, (170, 100, 40), barrel.pos, BARREL_R)
+
     body = pygame.Rect(0, 0, PLAYER_W, PLAYER_H)
     body.midbottom = (player.pos.x, player.pos.y)
     pygame.draw.rect(screen, (50, 180, 240), body)
+
     hud = font.render(f"Score {score}   Lives {lives}   R = reset", True, (240, 240, 240))
     screen.blit(hud, (10, 8))
+
     if state != "play":
         text = "YOU WIN! Press R" if state == "win" else "GAME OVER - Press R"
         label = font.render(text, True, (255, 255, 120))
@@ -201,11 +224,14 @@ def main():
     pygame.display.set_caption("Donkey Kong")
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 28)
+
     player, barrels = Player(), []
     score, lives, state, spawn_timer = 0, 3, "play", 1.0
+
     running = True
     while running:
         dt = min(clock.tick(60) / 1000, 0.05)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -215,12 +241,14 @@ def main():
                 player.reset()
                 barrels.clear()
                 score, lives, state = 0, 3, "play"
+
         if state == "play":
             player.update(dt, pygame.key.get_pressed())
             spawn_timer -= dt
             if spawn_timer <= 0:
                 barrels.append(Barrel())
                 spawn_timer = random.uniform(1.8, 3.2)
+
             for barrel in barrels:
                 barrel.update(dt)
                 hit_range = BARREL_R + PLAYER_W / 2
@@ -235,12 +263,16 @@ def main():
                     barrel.scored = True
                     score += int(100 * (score_multiplier(score) or 1))
                     on_barrel_jumped(player, barrel)
+
             barrels[:] = [b for b in barrels if b.pos.y < HEIGHT + 30]
+
             if player.center().distance_to(pygame.Vector2(PRINCESS_POS)) < 24:
                 score += 1000
                 state = "win"
+
         draw_scene(screen, font, player, barrels, score, lives, state)
         pygame.display.flip()
+
     pygame.quit()
 
 
