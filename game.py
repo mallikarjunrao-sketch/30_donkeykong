@@ -15,6 +15,11 @@ LADDER_DESCENT_CHANCE = 0.3
 THEME_MAX_SCORE = 2000          # score at which the background is fully "warm"
 THEME_WARM_COLOR = (90, 25, 15)  # warm dark red/orange
 
+# Task 3: floating "+100" labels (side effects live here)
+FLOATING_TEXTS = []             # each item: {"text", "pos", "ttl"}
+FLOAT_LIFETIME = 0.9            # seconds a label stays on screen
+LAST_BONUS = 100                # points awarded by the most recent barrel jump
+
 # (x_left, x_right, y_at_left, y_at_right)
 PLATFORMS = [
     (0, 800, 570, 570),
@@ -45,13 +50,25 @@ def theme_color(score):
 
 
 def on_barrel_jumped(player, barrel):
-    """Called when the player clears a barrel; add a bonus effect here."""
-    pass
+    """Called when the player clears a barrel; spawn a floating bonus label."""
+    FLOATING_TEXTS.append({
+        "text": f"+{LAST_BONUS}",
+        "pos": pygame.Vector2(barrel.pos.x, barrel.pos.y - 20),
+        "ttl": FLOAT_LIFETIME,
+    })
 
 
 def score_multiplier(score):
     """Return a multiplier applied to points earned from clearing a barrel, or None for the default 1x."""
     pass
+
+
+def update_floating_texts(dt):
+    """Move labels upward and drop the expired ones."""
+    for item in FLOATING_TEXTS:
+        item["ttl"] -= dt
+        item["pos"].y -= 40 * dt
+    FLOATING_TEXTS[:] = [item for item in FLOATING_TEXTS if item["ttl"] > 0]
 
 
 class Player:
@@ -216,6 +233,12 @@ def draw_scene(screen, font, player, barrels, score, lives, state):
     body.midbottom = (player.pos.x, player.pos.y)
     pygame.draw.rect(screen, (50, 180, 240), body)
 
+    # Task 3: draw the floating "+100" labels (fade out as they expire)
+    for item in FLOATING_TEXTS:
+        label = font.render(item["text"], True, (255, 255, 120))
+        label.set_alpha(int(255 * max(item["ttl"], 0) / FLOAT_LIFETIME))
+        screen.blit(label, label.get_rect(center=(item["pos"].x, item["pos"].y)))
+
     hud = font.render(f"Score {score}   Lives {lives}   R = reset", True, (240, 240, 240))
     screen.blit(hud, (10, 8))
 
@@ -247,6 +270,7 @@ def main():
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 player.reset()
                 barrels.clear()
+                FLOATING_TEXTS.clear()
                 score, lives, state = 0, 3, "play"
 
         if state == "play":
@@ -277,6 +301,7 @@ def main():
                 score += 1000
                 state = "win"
 
+        update_floating_texts(dt)
         draw_scene(screen, font, player, barrels, score, lives, state)
         pygame.display.flip()
 
